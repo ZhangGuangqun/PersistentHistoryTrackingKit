@@ -73,6 +73,9 @@ public final class PersistentHistoryTrackingKit {
     private let coordinator: NSPersistentStoreCoordinator
     /// 专职处理transaction的托管对象上下文
     private let backgroundContext: NSManagedObjectContext
+    
+    /// 处理 persistent store 发生改变后，提供给外部的回调
+    private let storeChangeCallback: (([NSPersistentHistoryTransaction], NSManagedObjectContext) -> Void)?
 
     /// 创建处理 Transaction 的任务。
     ///
@@ -97,6 +100,11 @@ public final class PersistentHistoryTrackingKit {
                     by: fetcher,
                     logger: sendMessage
                 )
+                
+                // callback
+                if storeChangeCallback != nil {
+                    storeChangeCallback!(transactions, self.backgroundContext)
+                }
 
                 // merge
                 mergeTransactionsInContexts(
@@ -196,7 +204,9 @@ public final class PersistentHistoryTrackingKit {
          maximumDuration: TimeInterval,
          uniqueString: String,
          logger: PersistentHistoryTrackingKitLoggerProtocol,
-         autoStart: Bool) {
+         autoStart: Bool,
+         storeChangeCallback: (([NSPersistentHistoryTransaction], NSManagedObjectContext) -> Void)?
+    ) {
         self.logLevel = logLevel
         self.currentAuthor = currentAuthor
         self.allAuthors = allAuthors
@@ -206,6 +216,7 @@ public final class PersistentHistoryTrackingKit {
         self.maximumDuration = maximumDuration
         self.uniqueString = uniqueString
         self.logger = logger
+        self.storeChangeCallback = storeChangeCallback
 
         // 检查 viewContext 是否为视图上下文
         guard viewContext.concurrencyType == .mainQueueConcurrencyType else {
@@ -315,7 +326,8 @@ public extension PersistentHistoryTrackingKit {
                      uniqueString: String = "PersistentHistoryTrackingKit.lastToken.",
                      logger: PersistentHistoryTrackingKitLoggerProtocol? = nil,
                      logLevel: Int = 1,
-                     autoStart: Bool = true) {
+                     autoStart: Bool = true,
+                     storeChangeCallback: (([NSPersistentHistoryTransaction], NSManagedObjectContext) -> Void)? = nil) {
         let contexts = contexts ?? [viewContext]
         let logger = logger ?? DefaultLogger()
         self.init(logLevel: logLevel,
@@ -330,7 +342,8 @@ public extension PersistentHistoryTrackingKit {
                   maximumDuration: maximumDuration,
                   uniqueString: uniqueString,
                   logger: logger,
-                  autoStart: autoStart)
+                  autoStart: autoStart,
+                  storeChangeCallback: storeChangeCallback)
     }
 
     /// 使用NSPersistentContainer的初始化器
@@ -346,7 +359,8 @@ public extension PersistentHistoryTrackingKit {
                      uniqueString: String = "PersistentHistoryTrackingKit.lastToken.",
                      logger: PersistentHistoryTrackingKitLoggerProtocol? = nil,
                      logLevel: Int = 1,
-                     autoStart: Bool = true) {
+                     autoStart: Bool = true,
+                     storeChangeCallback: (([NSPersistentHistoryTransaction], NSManagedObjectContext) -> Void)? = nil){
         let viewContext = container.viewContext
         let contexts = contexts ?? [viewContext]
         let logger = logger ?? DefaultLogger()
@@ -362,7 +376,8 @@ public extension PersistentHistoryTrackingKit {
                   maximumDuration: maximumDuration,
                   uniqueString: uniqueString,
                   logger: logger,
-                  autoStart: autoStart)
+                  autoStart: autoStart,
+                  storeChangeCallback: storeChangeCallback)
     }
 }
 
